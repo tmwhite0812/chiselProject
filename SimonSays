@@ -1,0 +1,119 @@
+package usingDisplay
+
+import chisel3._
+import chisel3.util._
+import _root_.circt
+import chisel3.stage.{ChiselGeneratorAnnotation}
+import displayDriver.topLevelDisplay
+
+object simonSaysMain extends App{
+    class simonSays extends Module {
+        val io = IO(new Bundle {
+            val board_btn1 = Input(Bool())
+            val board_btn2 = Input(Bool())
+            val board_btn3 = Input(Bool())
+            val board_btn4 = Input(Bool())
+
+            val board_segments = Output(UInt(7.W))
+            val board_anode = Output(UInt(4.W))
+            
+        })
+        
+
+        val genNum :: displaySides :: waitForPress :: checkBtnMatch :: gameOver :: checkEndTurn :: Nil = util.Enum(6)
+	    val stateReg = RegInit(genNum);
+
+
+        val display = Module(new topLevelDisplay(false)) 
+        val segs = Wire(Vec(4, UInt(7.W)))   
+        io.board_segments := display.io.segments
+        io.board_anode := display.io.anode
+        
+
+
+        val counter = RegInit(1.U(3.W))
+        val randomVal = RegInit(0.U(3.W))
+
+        when(counter === 4.U){
+            counter := 1.U
+        }.otherwise{
+            counter := counter + 1.U
+        }
+
+        switch(stateReg){
+            is(genNum){
+                randomVal := counter;
+                // add randomVal to list
+                stateReg := displaySides;
+            }
+            is(displaySides){
+                // go through each value in list
+                for (i <- 1 to 10) {
+                    val j = i;
+                    if(j == 1){
+                        segs(0) := "b0000110".U 
+                        segs(1) := "b0000000".U
+                        segs(2) := "b0000000".U
+                        segs(3) := "b1000000".U
+
+                        display.io.input := segs
+                    } else if(j == 2){
+                        segs(0) := "b0000000".U 
+                        segs(1) := "b1000000".U
+                        segs(2) := "b0000000".U
+                        segs(3) := "b1000000".U
+
+                        display.io.input := segs
+                    } else if(j == 3){
+                        segs(0) := "b0000000".U 
+                        segs(1) := "b0000000".U
+                        segs(2) := "b0110000".U
+                        segs(3) := "b0000000".U
+
+                        display.io.input := segs
+                    } else{
+                        segs(0) := "b0000000".U 
+                        segs(1) := "b0000000".U
+                        segs(2) := "b0110000".U
+                        segs(3) := "b0001000".U
+
+                        display.io.input := segs
+                    }
+                }
+                stateReg := checkBtnMatch;
+            }
+            is(checkBtnMatch){
+                when(io.board_btn1) {
+                    if(true) {
+                        stateReg := checkEndTurn
+                    } else{
+                        stateReg := gameOver
+                    }
+                }.elsewhen(io.board_btn2) {
+
+                }.elsewhen(io.board_btn3) {
+
+                }.elsewhen(io.board_btn4) {
+
+                }
+            }
+            is(checkEndTurn){
+                // last number in list
+                if(true){
+                    stateReg := genNum;
+                } else{
+                    stateReg := checkBtnMatch;
+                }
+            }
+            is(gameOver){
+                // make some sort of display to indicate game over
+            }
+
+        }
+
+        
+
+    }
+
+    new circt.stage.ChiselStage().execute(args,Seq(circt.stage.CIRCTTargetAnnotation(circt.stage.CIRCTTarget.SystemVerilog), ChiselGeneratorAnnotation(() => new simonSays)))
+}
